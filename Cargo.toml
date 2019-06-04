@@ -1,0 +1,15 @@
+[package]
+name = "daytona"
+version = "0.1.0"
+authors = ["Alex Beregszaszi <alex@rtfs.hu>"]
+license = "Apache-2.0"
+edition = "2018"
+
+[lib]
+name = "daytona"
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+evmc-sys = { git = "https://github.com/ethereum/evmc", rev = "9510206" }
+evmc-vm = { git = "https://github.com/ethereum/evmc", rev = "9510206" }
+evmc-declare = { git = "https://github.com/ethereum/evmc", rev = "9510206" }
