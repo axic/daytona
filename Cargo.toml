@@ -13,3 +13,4 @@ crate-type = ["staticlib", "cdylib"]
 evmc-sys = { git = "https://github.com/ethereum/evmc", rev = "fb53579" }
 evmc-vm = { git = "https://github.com/ethereum/evmc", rev = "fb53579" }
 evmc-declare = { git = "https://github.com/ethereum/evmc", rev = "fb53579" }
+standalone_parity_evm = { git = "https://github.com/axic/standalone-parity-evm", rev = "e58855b" }
