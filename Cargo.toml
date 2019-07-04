@@ -10,6 +10,6 @@ name = "daytona"
 crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
-evmc-sys = { git = "https://github.com/ethereum/evmc", rev = "9510206" }
-evmc-vm = { git = "https://github.com/ethereum/evmc", rev = "9510206" }
-evmc-declare = { git = "https://github.com/ethereum/evmc", rev = "9510206" }
+evmc-sys = { git = "https://github.com/ethereum/evmc", rev = "fb53579" }
+evmc-vm = { git = "https://github.com/ethereum/evmc", rev = "fb53579" }
+evmc-declare = { git = "https://github.com/ethereum/evmc", rev = "fb53579" }
