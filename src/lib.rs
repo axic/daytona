@@ -189,20 +189,44 @@ impl EvmcVm for Daytona {
         Daytona {}
     }
 
-    fn execute(&self, code: &[u8], message: &ExecutionMessage, context: &ExecutionContext) -> ExecutionResult {
+    fn execute(
+        &self,
+        revision: evmc_sys::evmc_revision,
+        code: &[u8],
+        message: &ExecutionMessage,
+        context: &ExecutionContext,
+    ) -> ExecutionResult {
         // This is the "message"
         let mut params = ActionParams::default();
         // FIXME: fill out params
         params.code = Some(Arc::new(code.to_vec()));
         params.gas = U256::from(message.gas());
         params.data = if let Some(input) = message.input() {
-           Some(input.clone())
+            Some(input.clone())
         } else {
-           None
+            None
         };
 
         // This is the wrapper for "context"
         let mut ext = VMExt::default();
+
+        ext.schedule = match revision {
+            evmc_sys::evmc_revision::EVMC_FRONTIER => Schedule::new_frontier(),
+            evmc_sys::evmc_revision::EVMC_HOMESTEAD => Schedule::new_homestead(),
+            // FIXME!
+            // evmc_sys::evmc_revision::EVMC_TANGERINE_WHISTLE => Schedule::Self::new_post_eip150(??, false, false, false),
+            // FIXME?
+            evmc_sys::evmc_revision::EVMC_SPURIOUS_DRAGON => {
+                Schedule::new_post_eip150(24576, true, true, true)
+            }
+            evmc_sys::evmc_revision::EVMC_BYZANTIUM => Schedule::new_byzantium(),
+            evmc_sys::evmc_revision::EVMC_CONSTANTINOPLE => Schedule::new_constantinople(),
+            // FIXME: add petersburg (need parity bump)
+            evmc_sys::evmc_revision::EVMC_PETERSBURG => Schedule::new_constantinople(),
+            // FIXME: add istanbul
+            evmc_sys::evmc_revision::EVMC_ISTANBUL => Schedule::new_constantinople(),
+            _ => unimplemented!(),
+        };
 
         let mut instance = Factory::default().create(params, ext.schedule(), ext.depth());
         let result = instance.exec(&mut ext);
