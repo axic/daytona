@@ -196,6 +196,8 @@ impl EvmcVm for Daytona {
         message: &ExecutionMessage,
         context: &ExecutionContext,
     ) -> ExecutionResult {
+        let tx_context = context.get_tx_context();
+
         // This is the "message"
         let mut params = ActionParams::default();
         // FIXME: fill out params
@@ -221,6 +223,12 @@ impl EvmcVm for Daytona {
         } else {
             None
         };
+        // FIXME: why are these two different fields?
+        params.address = Address::from(message.destination().bytes.clone());
+        params.code_address = Address::from(message.destination().bytes);
+        params.sender = Address::from(message.sender().bytes);
+        params.origin = Address::from(tx_context.tx_origin.bytes);
+        params.gas_price = U256::from(&tx_context.tx_gas_price.bytes);
 
         // This is the wrapper for "context"
         let mut ext = VMExt::default();
@@ -242,6 +250,13 @@ impl EvmcVm for Daytona {
             evmc_sys::evmc_revision::EVMC_ISTANBUL => Schedule::new_constantinople(),
             _ => unimplemented!(),
         };
+
+        ext.info.author = Address::from(tx_context.block_coinbase.bytes);
+        ext.info.difficulty = U256::from(tx_context.block_difficulty.bytes);
+        // FIXME: i64 -> u64 typecasting
+        ext.info.number = tx_context.block_number as u64;
+        ext.info.timestamp = tx_context.block_timestamp as u64;
+        ext.info.gas_limit = U256::from(tx_context.block_gas_limit);
 
         let mut instance = Factory::default().create(params, ext.schedule(), ext.depth());
         let result = instance.exec(&mut ext);
