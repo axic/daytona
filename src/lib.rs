@@ -1,5 +1,5 @@
 use evmc_declare::evmc_declare_vm;
-use evmc_vm::{EvmcVm, ExecutionContext, ExecutionResult};
+use evmc_vm::{EvmcVm, ExecutionContext, ExecutionMessage, ExecutionResult};
 use standalone_parity_evm::*;
 
 use std::ops::Deref;
@@ -189,13 +189,13 @@ impl EvmcVm for Daytona {
         Daytona {}
     }
 
-    fn execute(&self, code: &[u8], context: &ExecutionContext) -> ExecutionResult {
+    fn execute(&self, code: &[u8], message: &ExecutionMessage, context: &ExecutionContext) -> ExecutionResult {
         // This is the "message"
         let mut params = ActionParams::default();
         // FIXME: fill out params
         params.code = Some(Arc::new(code.to_vec()));
-        params.gas = U256::from(context.get_message().gas());
-        params.data = if let Some(input) = context.get_message().input() {
+        params.gas = U256::from(message.gas());
+        params.data = if let Some(input) = message.input() {
            Some(input.clone())
         } else {
            None
@@ -223,11 +223,7 @@ impl EvmcVm for Daytona {
                 if apply_state {
                     ExecutionResult::success(gas_left, Some(&data.deref()))
                 } else {
-                    ExecutionResult::new(
-                        evmc_sys::evmc_status_code::EVMC_REVERT,
-                        gas_left,
-                        Some(&data.deref()),
-                    )
+                    ExecutionResult::revert(Some(&data.deref()))
                 }
             }
             // FIXME: not sure what this state means
