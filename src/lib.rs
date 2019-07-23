@@ -199,6 +199,21 @@ impl EvmcVm for Daytona {
         // This is the "message"
         let mut params = ActionParams::default();
         // FIXME: fill out params
+        params.call_type = match message.kind() {
+            evmc_sys::evmc_call_kind::EVMC_CALL => {
+                if message.flags() == (evmc_sys::evmc_flags::EVMC_STATIC as u32) {
+                    CallType::StaticCall
+                } else {
+                    CallType::Call
+                }
+            }
+            evmc_sys::evmc_call_kind::EVMC_CALLCODE => CallType::CallCode,
+            evmc_sys::evmc_call_kind::EVMC_DELEGATECALL => CallType::DelegateCall,
+            evmc_sys::evmc_call_kind::EVMC_CREATE => CallType::None,
+            evmc_sys::evmc_call_kind::EVMC_CREATE2 => CallType::None,
+            _ => unimplemented!(),
+        };
+
         params.code = Some(Arc::new(code.to_vec()));
         params.gas = U256::from(message.gas());
         params.data = if let Some(input) = message.input() {
