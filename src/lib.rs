@@ -14,6 +14,7 @@ pub struct Daytona;
 struct VMExt {
     pub info: EnvInfo,
     pub schedule: Schedule,
+    pub static_mode: bool,
 }
 
 impl Ext for VMExt {
@@ -179,8 +180,7 @@ impl Ext for VMExt {
 
     /// Check if running in static context.
     fn is_static(&self) -> bool {
-        // NOTE: this is used by CREATE/CALL*, but since ewasm in the upper layer will handle this anyway, we can just ignore it here
-        false
+        self.static_mode
     }
 }
 
@@ -197,13 +197,14 @@ impl EvmcVm for Daytona {
         context: &ExecutionContext,
     ) -> ExecutionResult {
         let tx_context = context.get_tx_context();
+        let static_mode = message.flags() == (evmc_sys::evmc_flags::EVMC_STATIC as u32);
 
         // This is the "message"
         let mut params = ActionParams::default();
         // FIXME: fill out params
         params.call_type = match message.kind() {
             evmc_sys::evmc_call_kind::EVMC_CALL => {
-                if message.flags() == (evmc_sys::evmc_flags::EVMC_STATIC as u32) {
+                if static_mode {
                     CallType::StaticCall
                 } else {
                     CallType::Call
@@ -257,6 +258,8 @@ impl EvmcVm for Daytona {
         ext.info.number = tx_context.block_number as u64;
         ext.info.timestamp = tx_context.block_timestamp as u64;
         ext.info.gas_limit = U256::from(tx_context.block_gas_limit);
+
+        ext.static_mode = static_mode;
 
         let mut instance = Factory::default().create(params, ext.schedule(), ext.depth());
         let result = instance.exec(&mut ext);
