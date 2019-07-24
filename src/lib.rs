@@ -239,7 +239,13 @@ impl EvmcVm for Daytona {
             evmc_sys::evmc_revision::EVMC_SPURIOUS_DRAGON => {
                 Schedule::new_post_eip150(24576, true, true, true)
             }
-            evmc_sys::evmc_revision::EVMC_BYZANTIUM => Schedule::new_byzantium(),
+            evmc_sys::evmc_revision::EVMC_BYZANTIUM => {
+                let mut schedule = Schedule::new_byzantium();
+                // NOTE: fixing a a bug in Parity.
+                // Parity overrides these settings based on a chain config, but the default is wrong.
+                schedule.have_create2 = false;
+                schedule
+            },
             evmc_sys::evmc_revision::EVMC_CONSTANTINOPLE => {
                 let mut schedule = Schedule::new_constantinople();
                 schedule.eip1283 = true;
