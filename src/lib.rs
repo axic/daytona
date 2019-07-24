@@ -28,7 +28,10 @@ impl<'a> Ext for VMExt<'a> {
 
     /// Returns a value for given key.
     fn storage_at(&self, key: &H256) -> Result<H256> {
-        unimplemented!()
+        let value = self
+            .host
+            .get_storage(&self.address, &evmc_vm::Bytes32 { bytes: key.0 });
+        Ok(H256::from(value.bytes))
     }
 
     /// Stores a value for given key.
