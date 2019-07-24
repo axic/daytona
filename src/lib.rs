@@ -10,13 +10,15 @@ pub struct Daytona;
 
 // For some explanation see ethcore/vm/src/tests.rs::FakeExt
 
-struct VMExt {
+struct VMExt<'a> {
     info: EnvInfo,
     schedule: Schedule,
     static_mode: bool,
+    address: evmc_vm::Address,
+    host: &'a mut ExecutionContext<'a>,
 }
 
-impl Ext for VMExt {
+impl<'a> Ext for VMExt<'a> {
     /// Returns the storage value for a given key if reversion happens on the current transaction.
     fn initial_storage_at(&self, key: &H256) -> Result<H256> {
         unimplemented!()
@@ -273,6 +275,8 @@ impl EvmcVm for Daytona {
             info: info,
             schedule: schedule,
             static_mode: static_mode,
+            address: message.destination().clone(),
+            host: context,
         };
 
         let mut instance = Factory::default().create(params, ext.schedule(), ext.depth());
