@@ -289,9 +289,37 @@ impl EvmcVm for Daytona {
                     ExecutionResult::revert(Some(&data.deref()))
                 }
             }
-            // FIXME: not sure what this state means
-            Ok(Err(err)) => ExecutionResult::failure(),
-            // FIXME: add support for pushing the error message as revert data
+            Ok(Err(err)) => {
+                let err = match err {
+                    Error::OutOfGas => evmc_sys::evmc_status_code::EVMC_OUT_OF_GAS,
+                    Error::BadJumpDestination { .. } => {
+                        evmc_sys::evmc_status_code::EVMC_BAD_JUMP_DESTINATION
+                    }
+                    Error::BadInstruction { instruction } => {
+                        if instruction == 0xfe {
+                            evmc_sys::evmc_status_code::EVMC_INVALID_INSTRUCTION
+                        } else {
+                            evmc_sys::evmc_status_code::EVMC_UNDEFINED_INSTRUCTION
+                        }
+                    }
+                    Error::StackUnderflow { .. } => {
+                        evmc_sys::evmc_status_code::EVMC_STACK_UNDERFLOW
+                    }
+                    Error::OutOfStack { .. } => evmc_sys::evmc_status_code::EVMC_STACK_OVERFLOW,
+                    // FIXME: Support BuiltIn{}?
+                    Error::MutableCallInStaticContext => {
+                        evmc_sys::evmc_status_code::EVMC_STATIC_MODE_VIOLATION
+                    }
+                    // FIXME: Support Internal?
+                    Error::OutOfBounds { .. } => {
+                        evmc_sys::evmc_status_code::EVMC_INVALID_MEMORY_ACCESS
+                    }
+                    // FIXME: Support Reverted?
+                    _ => evmc_sys::evmc_status_code::EVMC_FAILURE,
+                };
+                ExecutionResult::new(err, 0, None)
+            }
+            // FIXME: figure out what cases this is called
             Err(err) => ExecutionResult::failure(),
         }
     }
