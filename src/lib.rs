@@ -294,7 +294,7 @@ impl EvmcVm for Daytona {
                 if apply_state {
                     ExecutionResult::success(gas_left, Some(&data.deref()))
                 } else {
-                    ExecutionResult::revert(Some(&data.deref()))
+                    ExecutionResult::revert(gas_left, Some(&data.deref()))
                 }
             }
             Ok(Err(err)) => {
