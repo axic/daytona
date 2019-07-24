@@ -179,146 +179,141 @@ impl Ext for VMExt {
     }
 }
 
+pub fn execute(
+    revision: evmc_sys::evmc_revision,
+    code: &[u8],
+    message: &ExecutionMessage,
+    context: &ExecutionContext,
+) -> ExecutionResult {
+    let tx_context = context.get_tx_context();
+    let static_mode = message.flags() == (evmc_sys::evmc_flags::EVMC_STATIC as u32);
 
-    pub fn execute(
-        revision: evmc_sys::evmc_revision,
-        code: &[u8],
-        message: &ExecutionMessage,
-        context: &ExecutionContext,
-    ) -> ExecutionResult {
-        let tx_context = context.get_tx_context();
-        let static_mode = message.flags() == (evmc_sys::evmc_flags::EVMC_STATIC as u32);
-
-        // This is the "message"
-        let mut params = ActionParams::default();
-        params.call_type = match message.kind() {
-            evmc_sys::evmc_call_kind::EVMC_CALL => {
-                if static_mode {
-                    CallType::StaticCall
-                } else {
-                    CallType::Call
-                }
+    // This is the "message"
+    let mut params = ActionParams::default();
+    params.call_type = match message.kind() {
+        evmc_sys::evmc_call_kind::EVMC_CALL => {
+            if static_mode {
+                CallType::StaticCall
+            } else {
+                CallType::Call
             }
-            evmc_sys::evmc_call_kind::EVMC_CALLCODE => CallType::CallCode,
-            evmc_sys::evmc_call_kind::EVMC_DELEGATECALL => CallType::DelegateCall,
-            evmc_sys::evmc_call_kind::EVMC_CREATE => CallType::None,
-            evmc_sys::evmc_call_kind::EVMC_CREATE2 => CallType::None,
-            _ => unimplemented!(),
-        };
-        // FIXME: add params_type?
-        params.code = Some(Arc::new(code.to_vec()));
-        // FIXME: add code_hash?
-        params.gas = U256::from(message.gas());
-        params.data = if let Some(input) = message.input() {
-            Some(input.clone())
-        } else {
-            None
-        };
-        // FIXME: why are these two different fields?
-        params.address = Address::from(message.destination().bytes.clone());
-        params.code_address = Address::from(message.destination().bytes);
-        params.sender = Address::from(message.sender().bytes);
-        params.origin = Address::from(tx_context.tx_origin.bytes);
-        params.gas_price = U256::from(&tx_context.tx_gas_price.bytes);
-        // FIXME: how do we know the difference between Transfer and Apparent?
-        params.value = ActionValue::Apparent(U256::from(message.value().bytes));
-
-        let schedule = match revision {
-            evmc_sys::evmc_revision::EVMC_FRONTIER => Schedule::new_frontier(),
-            evmc_sys::evmc_revision::EVMC_HOMESTEAD => Schedule::new_homestead(),
-            evmc_sys::evmc_revision::EVMC_TANGERINE_WHISTLE => {
-                Schedule::new_post_eip150(usize::max_value(), false, false, false)
-            }
-            evmc_sys::evmc_revision::EVMC_SPURIOUS_DRAGON => {
-                Schedule::new_post_eip150(24576, true, true, true)
-            }
-            evmc_sys::evmc_revision::EVMC_BYZANTIUM => {
-                let mut schedule = Schedule::new_byzantium();
-                // NOTE: fixing a a bug in Parity.
-                // Parity overrides these settings based on a chain config, but the default is wrong.
-                schedule.have_create2 = false;
-                schedule
-            },
-            evmc_sys::evmc_revision::EVMC_CONSTANTINOPLE => {
-                let mut schedule = Schedule::new_constantinople();
-                schedule.eip1283 = true;
-                schedule
-            }
-            // In Parity constantinople is petersburg, because it has eip1283 disabled by default.
-            evmc_sys::evmc_revision::EVMC_PETERSBURG => Schedule::new_constantinople(),
-            // FIXME: add istanbul
-            evmc_sys::evmc_revision::EVMC_ISTANBUL => Schedule::new_constantinople(),
-            _ => unimplemented!(),
-        };
-
-        let mut info = EnvInfo::default();
-        info.author = Address::from(tx_context.block_coinbase.bytes);
-        info.difficulty = U256::from(tx_context.block_difficulty.bytes);
-        // FIXME: i64 -> u64 typecasting
-        info.number = tx_context.block_number as u64;
-        info.timestamp = tx_context.block_timestamp as u64;
-        info.gas_limit = U256::from(tx_context.block_gas_limit);
-
-        // This is the wrapper for "context"
-        let mut ext = VMExt {
-            info: info,
-            schedule: schedule,
-            static_mode: static_mode,
-        };
-
-        let mut instance = Factory::default().create(params, ext.schedule(), ext.depth());
-        let result = instance.exec(&mut ext);
-
-        // Could run `result.finalize(ext)` here, but processing manually seemed simpler.
-        match result {
-            Ok(Ok(GasLeft::Known(gas_left))) => {
-                // NOTE: as_u64 is safe here given the incoming gas limit is u64
-                // FIXME: casting from u64 to i64 is unsafe
-                ExecutionResult::success(gas_left.as_u64() as i64, None)
-            }
-            Ok(Ok(GasLeft::NeedsReturn {
-                gas_left,
-                data,
-                apply_state,
-            })) => {
-                let gas_left = gas_left.as_u64() as i64;
-                if apply_state {
-                    ExecutionResult::success(gas_left, Some(&data.deref()))
-                } else {
-                    ExecutionResult::revert(gas_left, Some(&data.deref()))
-                }
-            }
-            Ok(Err(err)) => {
-                let err = match err {
-                    Error::OutOfGas => evmc_sys::evmc_status_code::EVMC_OUT_OF_GAS,
-                    Error::BadJumpDestination { .. } => {
-                        evmc_sys::evmc_status_code::EVMC_BAD_JUMP_DESTINATION
-                    }
-                    Error::BadInstruction { instruction } => {
-                        if instruction == 0xfe {
-                            evmc_sys::evmc_status_code::EVMC_INVALID_INSTRUCTION
-                        } else {
-                            evmc_sys::evmc_status_code::EVMC_UNDEFINED_INSTRUCTION
-                        }
-                    }
-                    Error::StackUnderflow { .. } => {
-                        evmc_sys::evmc_status_code::EVMC_STACK_UNDERFLOW
-                    }
-                    Error::OutOfStack { .. } => evmc_sys::evmc_status_code::EVMC_STACK_OVERFLOW,
-                    // FIXME: Support BuiltIn{}?
-                    Error::MutableCallInStaticContext => {
-                        evmc_sys::evmc_status_code::EVMC_STATIC_MODE_VIOLATION
-                    }
-                    // FIXME: Support Internal?
-                    Error::OutOfBounds { .. } => {
-                        evmc_sys::evmc_status_code::EVMC_INVALID_MEMORY_ACCESS
-                    }
-                    // FIXME: Support Reverted?
-                    _ => evmc_sys::evmc_status_code::EVMC_FAILURE,
-                };
-                ExecutionResult::new(err, 0, None)
-            }
-            // FIXME: figure out what cases this is called
-            Err(err) => ExecutionResult::failure(),
         }
+        evmc_sys::evmc_call_kind::EVMC_CALLCODE => CallType::CallCode,
+        evmc_sys::evmc_call_kind::EVMC_DELEGATECALL => CallType::DelegateCall,
+        evmc_sys::evmc_call_kind::EVMC_CREATE => CallType::None,
+        evmc_sys::evmc_call_kind::EVMC_CREATE2 => CallType::None,
+        _ => unimplemented!(),
+    };
+    // FIXME: add params_type?
+    params.code = Some(Arc::new(code.to_vec()));
+    // FIXME: add code_hash?
+    params.gas = U256::from(message.gas());
+    params.data = if let Some(input) = message.input() {
+        Some(input.clone())
+    } else {
+        None
+    };
+    // FIXME: why are these two different fields?
+    params.address = Address::from(message.destination().bytes.clone());
+    params.code_address = Address::from(message.destination().bytes);
+    params.sender = Address::from(message.sender().bytes);
+    params.origin = Address::from(tx_context.tx_origin.bytes);
+    params.gas_price = U256::from(&tx_context.tx_gas_price.bytes);
+    // FIXME: how do we know the difference between Transfer and Apparent?
+    params.value = ActionValue::Apparent(U256::from(message.value().bytes));
+
+    let schedule = match revision {
+        evmc_sys::evmc_revision::EVMC_FRONTIER => Schedule::new_frontier(),
+        evmc_sys::evmc_revision::EVMC_HOMESTEAD => Schedule::new_homestead(),
+        evmc_sys::evmc_revision::EVMC_TANGERINE_WHISTLE => {
+            Schedule::new_post_eip150(usize::max_value(), false, false, false)
+        }
+        evmc_sys::evmc_revision::EVMC_SPURIOUS_DRAGON => {
+            Schedule::new_post_eip150(24576, true, true, true)
+        }
+        evmc_sys::evmc_revision::EVMC_BYZANTIUM => {
+            let mut schedule = Schedule::new_byzantium();
+            // NOTE: fixing a a bug in Parity.
+            // Parity overrides these settings based on a chain config, but the default is wrong.
+            schedule.have_create2 = false;
+            schedule
+        }
+        evmc_sys::evmc_revision::EVMC_CONSTANTINOPLE => {
+            let mut schedule = Schedule::new_constantinople();
+            schedule.eip1283 = true;
+            schedule
+        }
+        // In Parity constantinople is petersburg, because it has eip1283 disabled by default.
+        evmc_sys::evmc_revision::EVMC_PETERSBURG => Schedule::new_constantinople(),
+        // FIXME: add istanbul
+        evmc_sys::evmc_revision::EVMC_ISTANBUL => Schedule::new_constantinople(),
+        _ => unimplemented!(),
+    };
+
+    let mut info = EnvInfo::default();
+    info.author = Address::from(tx_context.block_coinbase.bytes);
+    info.difficulty = U256::from(tx_context.block_difficulty.bytes);
+    // FIXME: i64 -> u64 typecasting
+    info.number = tx_context.block_number as u64;
+    info.timestamp = tx_context.block_timestamp as u64;
+    info.gas_limit = U256::from(tx_context.block_gas_limit);
+
+    // This is the wrapper for "context"
+    let mut ext = VMExt {
+        info: info,
+        schedule: schedule,
+        static_mode: static_mode,
+    };
+
+    let mut instance = Factory::default().create(params, ext.schedule(), ext.depth());
+    let result = instance.exec(&mut ext);
+
+    // Could run `result.finalize(ext)` here, but processing manually seemed simpler.
+    match result {
+        Ok(Ok(GasLeft::Known(gas_left))) => {
+            // NOTE: as_u64 is safe here given the incoming gas limit is u64
+            // FIXME: casting from u64 to i64 is unsafe
+            ExecutionResult::success(gas_left.as_u64() as i64, None)
+        }
+        Ok(Ok(GasLeft::NeedsReturn {
+            gas_left,
+            data,
+            apply_state,
+        })) => {
+            let gas_left = gas_left.as_u64() as i64;
+            if apply_state {
+                ExecutionResult::success(gas_left, Some(&data.deref()))
+            } else {
+                ExecutionResult::revert(gas_left, Some(&data.deref()))
+            }
+        }
+        Ok(Err(err)) => {
+            let err = match err {
+                Error::OutOfGas => evmc_sys::evmc_status_code::EVMC_OUT_OF_GAS,
+                Error::BadJumpDestination { .. } => {
+                    evmc_sys::evmc_status_code::EVMC_BAD_JUMP_DESTINATION
+                }
+                Error::BadInstruction { instruction } => {
+                    if instruction == 0xfe {
+                        evmc_sys::evmc_status_code::EVMC_INVALID_INSTRUCTION
+                    } else {
+                        evmc_sys::evmc_status_code::EVMC_UNDEFINED_INSTRUCTION
+                    }
+                }
+                Error::StackUnderflow { .. } => evmc_sys::evmc_status_code::EVMC_STACK_UNDERFLOW,
+                Error::OutOfStack { .. } => evmc_sys::evmc_status_code::EVMC_STACK_OVERFLOW,
+                // FIXME: Support BuiltIn{}?
+                Error::MutableCallInStaticContext => {
+                    evmc_sys::evmc_status_code::EVMC_STATIC_MODE_VIOLATION
+                }
+                // FIXME: Support Internal?
+                Error::OutOfBounds { .. } => evmc_sys::evmc_status_code::EVMC_INVALID_MEMORY_ACCESS,
+                // FIXME: Support Reverted?
+                _ => evmc_sys::evmc_status_code::EVMC_FAILURE,
+            };
+            ExecutionResult::new(err, 0, None)
+        }
+        // FIXME: figure out what cases this is called
+        Err(err) => ExecutionResult::failure(),
     }
+}
