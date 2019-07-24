@@ -200,7 +200,6 @@ impl EvmcVm for Daytona {
 
         // This is the "message"
         let mut params = ActionParams::default();
-        // FIXME: fill out params
         params.call_type = match message.kind() {
             evmc_sys::evmc_call_kind::EVMC_CALL => {
                 if static_mode {
@@ -215,8 +214,9 @@ impl EvmcVm for Daytona {
             evmc_sys::evmc_call_kind::EVMC_CREATE2 => CallType::None,
             _ => unimplemented!(),
         };
-
+        // FIXME: add params_type?
         params.code = Some(Arc::new(code.to_vec()));
+        // FIXME: add code_hash?
         params.gas = U256::from(message.gas());
         params.data = if let Some(input) = message.input() {
             Some(input.clone())
@@ -229,6 +229,8 @@ impl EvmcVm for Daytona {
         params.sender = Address::from(message.sender().bytes);
         params.origin = Address::from(tx_context.tx_origin.bytes);
         params.gas_price = U256::from(&tx_context.tx_gas_price.bytes);
+        // FIXME: how do we know the difference between Transfer and Apparent?
+        params.value = ActionValue::Apparent(U256::from(message.value().bytes));
 
         let schedule = match revision {
             evmc_sys::evmc_revision::EVMC_FRONTIER => Schedule::new_frontier(),
