@@ -10,11 +10,10 @@ pub struct Daytona;
 
 // For some explanation see ethcore/vm/src/tests.rs::FakeExt
 
-#[derive(Default)]
 struct VMExt {
-    pub info: EnvInfo,
-    pub schedule: Schedule,
-    pub static_mode: bool,
+    info: EnvInfo,
+    schedule: Schedule,
+    static_mode: bool,
 }
 
 impl Ext for VMExt {
@@ -231,10 +230,7 @@ impl EvmcVm for Daytona {
         params.origin = Address::from(tx_context.tx_origin.bytes);
         params.gas_price = U256::from(&tx_context.tx_gas_price.bytes);
 
-        // This is the wrapper for "context"
-        let mut ext = VMExt::default();
-
-        ext.schedule = match revision {
+        let schedule = match revision {
             evmc_sys::evmc_revision::EVMC_FRONTIER => Schedule::new_frontier(),
             evmc_sys::evmc_revision::EVMC_HOMESTEAD => Schedule::new_homestead(),
             // FIXME!
@@ -252,14 +248,20 @@ impl EvmcVm for Daytona {
             _ => unimplemented!(),
         };
 
-        ext.info.author = Address::from(tx_context.block_coinbase.bytes);
-        ext.info.difficulty = U256::from(tx_context.block_difficulty.bytes);
+        let mut info = EnvInfo::default();
+        info.author = Address::from(tx_context.block_coinbase.bytes);
+        info.difficulty = U256::from(tx_context.block_difficulty.bytes);
         // FIXME: i64 -> u64 typecasting
-        ext.info.number = tx_context.block_number as u64;
-        ext.info.timestamp = tx_context.block_timestamp as u64;
-        ext.info.gas_limit = U256::from(tx_context.block_gas_limit);
+        info.number = tx_context.block_number as u64;
+        info.timestamp = tx_context.block_timestamp as u64;
+        info.gas_limit = U256::from(tx_context.block_gas_limit);
 
-        ext.static_mode = static_mode;
+        // This is the wrapper for "context"
+        let mut ext = VMExt {
+            info: info,
+            schedule: schedule,
+            static_mode: static_mode,
+        };
 
         let mut instance = Factory::default().create(params, ext.schedule(), ext.depth());
         let result = instance.exec(&mut ext);
