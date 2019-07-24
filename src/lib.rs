@@ -233,15 +233,19 @@ impl EvmcVm for Daytona {
         let schedule = match revision {
             evmc_sys::evmc_revision::EVMC_FRONTIER => Schedule::new_frontier(),
             evmc_sys::evmc_revision::EVMC_HOMESTEAD => Schedule::new_homestead(),
-            // FIXME!
-            // evmc_sys::evmc_revision::EVMC_TANGERINE_WHISTLE => Schedule::Self::new_post_eip150(??, false, false, false),
-            // FIXME?
+            evmc_sys::evmc_revision::EVMC_TANGERINE_WHISTLE => {
+                Schedule::new_post_eip150(usize::max_value(), false, false, false)
+            }
             evmc_sys::evmc_revision::EVMC_SPURIOUS_DRAGON => {
                 Schedule::new_post_eip150(24576, true, true, true)
             }
             evmc_sys::evmc_revision::EVMC_BYZANTIUM => Schedule::new_byzantium(),
-            evmc_sys::evmc_revision::EVMC_CONSTANTINOPLE => Schedule::new_constantinople(),
-            // FIXME: add petersburg (need parity bump)
+            evmc_sys::evmc_revision::EVMC_CONSTANTINOPLE => {
+                let mut schedule = Schedule::new_constantinople();
+                schedule.eip1283 = true;
+                schedule
+            }
+            // In Parity constantinople is petersburg, because it has eip1283 disabled by default.
             evmc_sys::evmc_revision::EVMC_PETERSBURG => Schedule::new_constantinople(),
             // FIXME: add istanbul
             evmc_sys::evmc_revision::EVMC_ISTANBUL => Schedule::new_constantinople(),
