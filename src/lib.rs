@@ -32,7 +32,12 @@ impl<'a> Ext for VMExt<'a> {
 
     /// Stores a value for given key.
     fn set_storage(&mut self, key: H256, value: H256) -> Result<()> {
-        unimplemented!()
+        self.host.set_storage(
+            &self.address,
+            &evmc_vm::Bytes32 { bytes: key.0 },
+            &evmc_vm::Bytes32 { bytes: value.0 },
+        );
+        Ok(())
     }
 
     /// Determine whether an account exists.
@@ -60,7 +65,7 @@ impl<'a> Ext for VMExt<'a> {
 
     /// Returns the hash of one of the 256 most recent complete blocks.
     fn blockhash(&mut self, number: &U256) -> H256 {
-        unimplemented!()
+        H256::from(self.host.get_block_hash(number.as_u64() as i64).bytes)
     }
 
     /// Creates new contract.
@@ -255,7 +260,7 @@ impl EvmcVm for Daytona {
                 // Parity overrides these settings based on a chain config, but the default is wrong.
                 schedule.have_create2 = false;
                 schedule
-            },
+            }
             evmc_sys::evmc_revision::EVMC_CONSTANTINOPLE => {
                 let mut schedule = Schedule::new_constantinople();
                 schedule.eip1283 = true;
