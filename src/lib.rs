@@ -14,6 +14,7 @@ struct VMExt<'a> {
     info: EnvInfo,
     schedule: Schedule,
     static_mode: bool,
+    depth: i32,
     address: evmc_vm::Address,
     host: &'a mut ExecutionContext<'a>,
 }
@@ -146,8 +147,8 @@ impl<'a> Ext for VMExt<'a> {
     /// If contract A calls contract B, and contract B calls C,
     /// then A depth is 0, B is 1, C is 2 and so on.
     fn depth(&self) -> usize {
-        // FIXME: implement
-        0
+        // FIXME: check if this cast is safe
+        self.depth as usize
     }
 
     /// Increments sstore refunds counter.
@@ -275,6 +276,7 @@ impl EvmcVm for Daytona {
             info: info,
             schedule: schedule,
             static_mode: static_mode,
+            depth: message.depth(),
             address: message.destination().clone(),
             host: context,
         };
