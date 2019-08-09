@@ -188,14 +188,14 @@ impl EvmcVm for Daytona {
         Daytona {}
     }
 
-    fn execute(
+    fn execute<'a>(
         &self,
         revision: evmc_sys::evmc_revision,
-        code: &[u8],
-        message: &ExecutionMessage,
-        context: &ExecutionContext,
+        code: &'a [u8],
+        message: &'a ExecutionMessage,
+        context: &'a mut ExecutionContext<'a>,
     ) -> ExecutionResult {
-        let tx_context = context.get_tx_context();
+        let tx_context = context.get_tx_context().clone();
         let static_mode = message.flags() == (evmc_sys::evmc_flags::EVMC_STATIC as u32);
 
         // This is the "message"
@@ -228,7 +228,7 @@ impl EvmcVm for Daytona {
         params.code_address = Address::from(message.destination().bytes);
         params.sender = Address::from(message.sender().bytes);
         params.origin = Address::from(tx_context.tx_origin.bytes);
-        params.gas_price = U256::from(&tx_context.tx_gas_price.bytes);
+        params.gas_price = U256::from(tx_context.tx_gas_price.bytes);
         // FIXME: how do we know the difference between Transfer and Apparent?
         params.value = ActionValue::Apparent(U256::from(message.value().bytes));
 
