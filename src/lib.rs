@@ -99,7 +99,61 @@ impl<'a> Ext for VMExt<'a> {
         call_type: CallType,
         trap: bool,
     ) -> ::std::result::Result<MessageCallResult, TrapKind> {
-        unimplemented!()
+        let kind = match call_type {
+            CallType::Call => evmc_sys::evmc_call_kind::EVMC_CALL,
+            CallType::CallCode => evmc_sys::evmc_call_kind::EVMC_CALLCODE,
+            CallType::DelegateCall => evmc_sys::evmc_call_kind::EVMC_DELEGATECALL,
+            CallType::StaticCall => evmc_sys::evmc_call_kind::EVMC_CALL,
+            CallType::None => panic!(),
+        };
+        let flags = if call_type == CallType::StaticCall {
+            // TODO: make this nicer
+            evmc_sys::evmc_flags::EVMC_STATIC as u32
+        } else {
+            0
+        };
+        let value: [u8; 32] = value.unwrap_or_default().into();
+        let message = ExecutionMessage::new(
+            /*kind*/ kind,
+            /*flags*/ flags,
+            /*depth*/ self.depth,
+            /*gas*/ gas.as_u64() as i64,
+            /*destination*/
+            evmc_vm::Address {
+                bytes: receive_address.0,
+            },
+            /*sender*/
+            evmc_vm::Address {
+                bytes: sender_address.0,
+            },
+            /*input*/ Some(data),
+            /*value*/ evmc_vm::Uint256 { bytes: value },
+            /*create2_salt*/ evmc_vm::Bytes32::default(), // FIXME
+        );
+        //println!("  message: {:?}", message);
+        let result = self.host.call(&message);
+        //println!("  result: {:?}", result);
+        let output = if result.output().is_some() {
+            let output = result.output().unwrap().clone();
+            let len = output.len();
+            ReturnData::new(output, 0, len)
+        } else {
+            ReturnData::new(vec![], 0, 0)
+        };
+        match result.status_code() {
+            evmc_sys::evmc_status_code::EVMC_SUCCESS => Ok(MessageCallResult::Success(
+                U256::from(result.gas_left()),
+                output,
+            )),
+            evmc_sys::evmc_status_code::EVMC_REVERT => Ok(MessageCallResult::Reverted(
+                U256::from(result.gas_left()),
+                output,
+            )),
+            evmc_sys::evmc_status_code::EVMC_FAILURE => Ok(MessageCallResult::Failed),
+            // TODO: check if these two are correct
+            evmc_sys::evmc_status_code::EVMC_INTERNAL_ERROR => panic!(),
+            _ => Ok(MessageCallResult::Failed),
+        }
     }
 
     /// Returns code at given address
@@ -208,6 +262,7 @@ impl EvmcVm for Daytona {
         }
 
         let context = context.unwrap();
+
         let tx_context = context.get_tx_context().clone();
         let static_mode = message.flags() == (evmc_sys::evmc_flags::EVMC_STATIC as u32);
 
@@ -293,7 +348,7 @@ impl EvmcVm for Daytona {
             host: context,
         };
 
-        let mut instance = Factory::default().create(params, ext.schedule(), ext.depth());
+        let mut instance = Factory::default().create(params, &ext.schedule, ext.depth());
         let result = instance.exec(&mut ext);
 
         // Could run `result.finalize(ext)` here, but processing manually seemed simpler.
