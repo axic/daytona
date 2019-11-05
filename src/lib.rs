@@ -196,8 +196,13 @@ impl EvmcVm for Daytona {
         revision: evmc_sys::evmc_revision,
         code: &'a [u8],
         message: &'a ExecutionMessage,
-        context: &'a mut ExecutionContext<'a>,
+        context: Option<&'a mut ExecutionContext<'a>>,
     ) -> ExecutionResult {
+        if context.is_none() {
+            return ExecutionResult::failure();
+        }
+
+        let context = context.unwrap();
         let tx_context = context.get_tx_context().clone();
         let static_mode = message.flags() == (evmc_sys::evmc_flags::EVMC_STATIC as u32);
 
@@ -246,7 +251,7 @@ impl EvmcVm for Daytona {
             }
             evmc_sys::evmc_revision::EVMC_BYZANTIUM => {
                 let mut schedule = Schedule::new_byzantium();
-                // NOTE: fixing a a bug in Parity.
+                // NOTE: fixing a a bug in Parity. See https://github.com/paritytech/parity-ethereum/issues/10914
                 // Parity overrides these settings based on a chain config, but the default is wrong.
                 schedule.have_create2 = false;
                 schedule
@@ -260,6 +265,8 @@ impl EvmcVm for Daytona {
             evmc_sys::evmc_revision::EVMC_PETERSBURG => Schedule::new_constantinople(),
             // FIXME: add istanbul
             evmc_sys::evmc_revision::EVMC_ISTANBUL => Schedule::new_constantinople(),
+            // FIXME: add berlin
+            evmc_sys::evmc_revision::EVMC_BERLIN => Schedule::new_constantinople(),
             _ => unimplemented!(),
         };
 
