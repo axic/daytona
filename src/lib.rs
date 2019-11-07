@@ -56,12 +56,16 @@ impl<'a> Ext for VMExt<'a> {
 
     /// Balance of the origin account.
     fn origin_balance(&self) -> Result<U256> {
-        unimplemented!()
+        let value = self.host.get_balance(&self.address);
+        Ok(U256::from(value.bytes))
     }
 
     /// Returns address balance.
     fn balance(&self, address: &Address) -> Result<U256> {
-        unimplemented!()
+        let value = self
+            .host
+            .get_balance(&evmc_vm::Address { bytes: address.0 });
+        Ok(U256::from(value.bytes))
     }
 
     /// Returns the hash of one of the 256 most recent complete blocks.
