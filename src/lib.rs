@@ -169,17 +169,39 @@ impl<'a> Ext for VMExt<'a> {
 
     /// Returns code at given address
     fn extcode(&self, address: &Address) -> Result<Option<Arc<Bytes>>> {
-        unimplemented!()
+        let address = evmc_vm::Address { bytes: address.0 };
+        let size = self.host.get_code_size(&address);
+        let mut buf = Vec::with_capacity(size);
+        unsafe { buf.set_len(size) };
+        let copied_size = self.host.copy_code(&address, 0, &mut buf[..]);
+        if copied_size != size {
+            // FIXME: use proper error
+            Err(Error::OutOfBounds)
+        } else {
+            Ok(Some(Arc::new(buf)))
+        }
     }
 
     /// Returns code hash at given address
     fn extcodehash(&self, address: &Address) -> Result<Option<H256>> {
-        unimplemented!()
+        // FIXME: should this not return None if the account doesn't exists?
+        if self.exists(&address).unwrap() {
+            let value = self
+                .host
+                .get_code_hash(&evmc_vm::Address { bytes: address.0 });
+            Ok(Some(H256::from(value.bytes)))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Returns code size at given address
     fn extcodesize(&self, address: &Address) -> Result<Option<usize>> {
-        unimplemented!()
+        // FIXME: should this not return None if the account doesn't exists?
+        Ok(Some(
+            self.host
+                .get_code_size(&evmc_vm::Address { bytes: address.0 }),
+        ))
     }
 
     /// Creates log entry with given topics and data
