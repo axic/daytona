@@ -184,7 +184,13 @@ impl<'a> Ext for VMExt<'a> {
     /// Should be called when contract commits suicide.
     /// Address to which funds should be refunded.
     fn suicide(&mut self, refund_address: &Address) -> Result<()> {
-        unimplemented!()
+        self.host.selfdestruct(
+            &self.address,
+            &evmc_vm::Address {
+                bytes: refund_address.0,
+            },
+        );
+        Ok(())
     }
 
     /// Returns schedule.
