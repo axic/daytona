@@ -46,12 +46,18 @@ impl<'a> Ext for VMExt<'a> {
 
     /// Determine whether an account exists.
     fn exists(&self, address: &Address) -> Result<bool> {
-        unimplemented!()
+        // FIXME: check if this is correct with EVMC
+        Ok(self
+            .host
+            .account_exists(&evmc_vm::Address { bytes: address.0 }))
     }
 
     /// Determine whether an account exists and is not null (zero balance/nonce, no code).
     fn exists_and_not_null(&self, address: &Address) -> Result<bool> {
-        unimplemented!()
+        // FIXME: check if this is correct with EVMC
+        Ok(self
+            .host
+            .account_exists(&evmc_vm::Address { bytes: address.0 }))
     }
 
     /// Balance of the origin account.
