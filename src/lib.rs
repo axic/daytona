@@ -170,7 +170,13 @@ impl<'a> Ext for VMExt<'a> {
 
     /// Creates log entry with given topics and data
     fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> Result<()> {
-        unimplemented!()
+        // FIXME: implement into_iter on Bytes32
+        let topics: Vec<evmc_vm::Bytes32> = topics
+            .into_iter()
+            .map(|topic| evmc_vm::Bytes32 { bytes: topic.0 })
+            .collect();
+        self.host.emit_log(&self.address, &data, &topics);
+        Ok(())
     }
 
     /// Should be called when transaction calls `RETURN` opcode.
