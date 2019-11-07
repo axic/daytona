@@ -42,19 +42,16 @@ impl<'a> Ext for VMExt<'a> {
 
     /// Determine whether an account exists.
     fn exists(&self, address: &Address) -> Result<bool> {
-        // NOTE: used by SELFDESTRUCT/CALL for gas metering (not used here now since we don't charge gas)
         unimplemented!()
     }
 
     /// Determine whether an account exists and is not null (zero balance/nonce, no code).
     fn exists_and_not_null(&self, address: &Address) -> Result<bool> {
-        // NOTE: used by SELFDESTRUCT/CALL for gas metering (not used here now since we don't charge gas)
         unimplemented!()
     }
 
     /// Balance of the origin account.
     fn origin_balance(&self) -> Result<U256> {
-        // NOTE: used by SLEFDESTRUCT for gas metering (not used here now since we don't charge gas)
         unimplemented!()
     }
 
@@ -163,7 +160,6 @@ impl<'a> Ext for VMExt<'a> {
 
     /// Returns code hash at given address
     fn extcodehash(&self, address: &Address) -> Result<Option<H256>> {
-        // NOTE: only used by constantinople's EXTCODEHASH
         unimplemented!()
     }
 
@@ -348,7 +344,7 @@ impl EvmcVm for Daytona {
             host: context,
         };
 
-        let mut instance = Factory::default().create(params, &ext.schedule, ext.depth());
+        let instance = Factory::default().create(params, &ext.schedule, ext.depth());
         let result = instance.exec(&mut ext);
 
         // Could run `result.finalize(ext)` here, but processing manually seemed simpler.
