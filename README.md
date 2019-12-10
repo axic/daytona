@@ -27,6 +27,8 @@ should result in an EMVC compatible shared library.
 
 Apache-2.0
 
+**Note:** While this repository is Apache-2.0 licensed, the resulting binary linked with Parity's EVM will be licensed under GPL-3.0.
+
 [EVMC]: https://github.com/ethereum/evmc
 [Parity]: https://github.com/paritytech/parity-ethereum
 [SputnikVM]: https://github.com/ethereumproject/evm-rs
