@@ -209,6 +209,11 @@ impl<'a> Ext for VMExt<'a> {
         &self.info
     }
 
+    /// Returns the chain ID of the blockchain
+    fn chain_id(&self) -> u64 {
+        unimplemented!()
+    }
+
     /// Returns current depth of execution.
     ///
     /// If contract A calls contract B, and contract B calls C,
@@ -331,10 +336,9 @@ impl EvmcVm for Daytona {
             }
             // In Parity constantinople is petersburg, because it has eip1283 disabled by default.
             evmc_sys::evmc_revision::EVMC_PETERSBURG => Schedule::new_constantinople(),
-            // FIXME: add istanbul
-            evmc_sys::evmc_revision::EVMC_ISTANBUL => Schedule::new_constantinople(),
+            evmc_sys::evmc_revision::EVMC_ISTANBUL => Schedule::new_istanbul(),
             // FIXME: add berlin
-            evmc_sys::evmc_revision::EVMC_BERLIN => Schedule::new_constantinople(),
+            evmc_sys::evmc_revision::EVMC_BERLIN => unimplemented!(),
             _ => unimplemented!(),
         };
 

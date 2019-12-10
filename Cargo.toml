@@ -13,7 +13,7 @@ crate-type = ["staticlib", "cdylib"]
 evmc-sys = "7.1"
 evmc-vm = "7.1"
 evmc-declare = "7.1"
-standalone_parity_evm = { git = "https://github.com/axic/standalone-parity-evm", tag = "v2.3.3" }
+standalone_parity_evm = { git = "https://github.com/axic/standalone-parity-evm", tag = "v2.5.11" }
 
 [profile.release]
 lto = true
