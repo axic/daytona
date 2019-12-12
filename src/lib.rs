@@ -15,6 +15,7 @@ struct VMExt<'a> {
     schedule: Schedule,
     static_mode: bool,
     depth: i32,
+    chain_id: u64,
     address: evmc_vm::Address,
     host: &'a mut ExecutionContext<'a>,
 }
@@ -211,7 +212,7 @@ impl<'a> Ext for VMExt<'a> {
 
     /// Returns the chain ID of the blockchain
     fn chain_id(&self) -> u64 {
-        unimplemented!()
+        self.chain_id
     }
 
     /// Returns current depth of execution.
@@ -356,6 +357,8 @@ impl EvmcVm for Daytona {
             schedule: schedule,
             static_mode: static_mode,
             depth: message.depth(),
+            // FIXME: simplify
+            chain_id: U256::from(tx_context.chain_id.bytes).as_u64(),
             address: message.destination().clone(),
             host: context,
         };
