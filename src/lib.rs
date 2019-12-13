@@ -98,8 +98,69 @@ impl<'a> Ext for VMExt<'a> {
         address: CreateContractAddress,
         trap: bool,
     ) -> ::std::result::Result<ContractCreateResult, TrapKind> {
-        // FIXME: implement this, but for now, fail more gracefully
-        Ok(ContractCreateResult::Failed)
+        // FIXME: what does trap means here?!
+        let flags = if self.is_static() {
+            // TODO: make this nicer
+            evmc_sys::evmc_flags::EVMC_STATIC as u32
+        } else {
+            0
+        };
+        let value: [u8; 32] = (*value).into();
+        let salt = match address {
+            CreateContractAddress::FromSenderAndNonce => evmc_vm::Bytes32::default(), // Pass on empty salt.
+            CreateContractAddress::FromSenderSaltAndCodeHash(salt) => {
+                evmc_vm::Bytes32 { bytes: salt.0 }
+            }
+            _ => unimplemented!(),
+        };
+        let kind = match address {
+            CreateContractAddress::FromSenderAndNonce => evmc_sys::evmc_call_kind::EVMC_CREATE,
+            CreateContractAddress::FromSenderSaltAndCodeHash(salt) => {
+                evmc_sys::evmc_call_kind::EVMC_CREATE2
+            }
+            _ => unimplemented!(),
+        };
+        let message = ExecutionMessage::new(
+            /*kind*/ kind,
+            /*flags*/ flags,
+            /*depth*/ self.depth + 1,
+            /*gas*/ gas.as_u64() as i64,
+            /*destination*/ evmc_vm::Address::default(),
+            /*sender*/ evmc_vm::Address::default(), // FIXME: where's the sender?!
+            /*input*/ Some(code),
+            /*value*/ evmc_vm::Uint256 { bytes: value },
+            /*create2_salt*/ salt,
+        );
+        //println!("  message: {:?}", message);
+        let result = self.host.call(&message);
+        //println!("  result: {:?}", result);
+        // TODO: consider moving this to the Reverted case
+        let output = if result.output().is_some() {
+            let output = result.output().unwrap().clone();
+            let len = output.len();
+            ReturnData::new(output, 0, len)
+        } else {
+            ReturnData::new(vec![], 0, 0)
+        };
+        match result.status_code() {
+            evmc_sys::evmc_status_code::EVMC_SUCCESS => {
+                let address = result
+                    .create_address()
+                    .expect("Address should be returned in case of SUCCESS");
+                Ok(ContractCreateResult::Created(
+                    Address::from(address.bytes),
+                    U256::from(result.gas_left()),
+                ))
+            }
+            evmc_sys::evmc_status_code::EVMC_REVERT => Ok(ContractCreateResult::Reverted(
+                U256::from(result.gas_left()),
+                output,
+            )),
+            evmc_sys::evmc_status_code::EVMC_FAILURE => Ok(ContractCreateResult::Failed),
+            // TODO: check if these two are correct
+            evmc_sys::evmc_status_code::EVMC_INTERNAL_ERROR => panic!(),
+            _ => Ok(ContractCreateResult::Failed),
+        }
     }
 
     /// Message call.
@@ -118,6 +179,7 @@ impl<'a> Ext for VMExt<'a> {
         call_type: CallType,
         trap: bool,
     ) -> ::std::result::Result<MessageCallResult, TrapKind> {
+        // FIXME: what does trap means here?!
         let kind = match call_type {
             CallType::Call => evmc_sys::evmc_call_kind::EVMC_CALL,
             CallType::CallCode => evmc_sys::evmc_call_kind::EVMC_CALLCODE,
