@@ -84,7 +84,29 @@ impl<'a> Ext for VMExt<'a> {
 
     /// Returns the hash of one of the 256 most recent complete blocks.
     fn blockhash(&mut self, number: &U256) -> H256 {
-        H256::from(self.host.get_block_hash(number.as_u64() as i64).bytes)
+        use core::cmp::max;
+
+        // Logic intentionally duplicated from Parity
+        // FIXME: this is not passing all tests?
+        // FIXME typecasting
+        // let block_number = self.host.get_tx_context().block_number as u64;
+        // if *number < U256::from(block_number) && number.low_u64() >= max(256, block_number) - 256 {
+        //     let number = block_number - number.low_u64() - 1;
+        // FIXME: typecasting
+        //     H256::from(self.host.get_block_hash(number as i64).bytes)
+        // } else {
+        //     H256::zero()
+        // }
+
+        // Logic copied from evmone
+        let upper_bound = self.host.get_tx_context().block_number;
+        let lower_bound = max(upper_bound - 256, 0);
+        let number = number.as_u64() as i64;
+        if (number < upper_bound) && (number >= lower_bound) {
+            H256::from(self.host.get_block_hash(number).bytes)
+        } else {
+            H256::zero()
+        }
     }
 
     /// Creates new contract.
