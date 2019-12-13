@@ -389,8 +389,8 @@ impl EvmcVm for Daytona {
             // In Parity constantinople is petersburg, because it has eip1283 disabled by default.
             evmc_sys::evmc_revision::EVMC_PETERSBURG => Schedule::new_constantinople(),
             evmc_sys::evmc_revision::EVMC_ISTANBUL => Schedule::new_istanbul(),
-            // FIXME: add berlin
-            evmc_sys::evmc_revision::EVMC_BERLIN => unimplemented!(),
+            // FIXME: add berlin (but now it just equals to istanbul)
+            evmc_sys::evmc_revision::EVMC_BERLIN => Schedule::new_istanbul(),
             _ => unimplemented!(),
         };
 
