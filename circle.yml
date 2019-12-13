@@ -1,0 +1,36 @@
+version: 2
+
+jobs:
+  build:
+    docker:
+      - image: rust:1
+    working_directory: ~/build
+    steps:
+      - checkout
+      - run:
+          name: Update rustc
+          command: |
+            apt update
+            apt -y install libclang-dev clang
+            rustup component add rustfmt
+            rustup toolchain install nightly
+            rustup update
+      - run:
+          name: Check formatting
+          command: |
+            rustfmt --version
+            cargo fmt --all -- --check
+      - run:
+          name: Build
+          command: |
+            cargo +nightly build --release
+      - persist_to_workspace:
+          root: ~/build
+          paths:
+            - target/release/libeip1962.so
+
+workflows:
+  version: 2
+  build-test:
+    jobs:
+      - build
