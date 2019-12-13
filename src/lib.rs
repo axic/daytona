@@ -24,7 +24,11 @@ struct VMExt<'a> {
 impl<'a> Ext for VMExt<'a> {
     /// Returns the storage value for a given key if reversion happens on the current transaction.
     fn initial_storage_at(&self, key: &H256) -> Result<H256> {
-        unimplemented!()
+        // FIXME: this is invalid, but only causes gas cost discrepancies,
+        // while leaving it unimplemented breaks a lot of instructions
+        //
+        // This cannot be implemented without EVMC changes.
+        Ok(H256::default())
     }
 
     /// Returns a value for given key.
