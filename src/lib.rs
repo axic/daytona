@@ -90,8 +90,8 @@ impl<'a> Ext for VMExt<'a> {
         address: CreateContractAddress,
         trap: bool,
     ) -> ::std::result::Result<ContractCreateResult, TrapKind> {
-        unimplemented!()
-        // Could just return ContractCreateResult::Failed for now
+        // FIXME: implement this, but for now, fail more gracefully
+        Ok(ContractCreateResult::Failed)
     }
 
     /// Message call.
