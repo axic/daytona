@@ -9,6 +9,7 @@ use std::sync::Arc;
 pub struct Daytona;
 
 // For some explanation see ethcore/vm/src/tests.rs::FakeExt
+// For an actual implementation see ethcore/machine/src/externalities.rs
 
 struct VMExt<'a> {
     info: EnvInfo,
@@ -185,7 +186,7 @@ impl<'a> Ext for VMExt<'a> {
     /// Returns code hash at given address
     fn extcodehash(&self, address: &Address) -> Result<Option<H256>> {
         // FIXME: should this not return None if the account doesn't exists?
-        if self.exists(&address).unwrap() {
+        if self.exists_and_not_null(&address).unwrap() {
             let value = self
                 .host
                 .get_code_hash(&evmc_vm::Address { bytes: address.0 });
