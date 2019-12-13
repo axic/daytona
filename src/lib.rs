@@ -135,7 +135,7 @@ impl<'a> Ext for VMExt<'a> {
         let message = ExecutionMessage::new(
             /*kind*/ kind,
             /*flags*/ flags,
-            /*depth*/ self.depth,
+            /*depth*/ self.depth + 1,
             /*gas*/ gas.as_u64() as i64,
             /*destination*/
             evmc_vm::Address {
