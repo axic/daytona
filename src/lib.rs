@@ -37,6 +37,9 @@ impl<'a> Ext for VMExt<'a> {
 
     /// Stores a value for given key.
     fn set_storage(&mut self, key: H256, value: H256) -> Result<()> {
+        if self.static_mode {
+            return Err(Error::MutableCallInStaticContext);
+        }
         self.host.set_storage(
             &self.address,
             &evmc_vm::Bytes32 { bytes: key.0 },
@@ -207,6 +210,10 @@ impl<'a> Ext for VMExt<'a> {
 
     /// Creates log entry with given topics and data
     fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> Result<()> {
+        if self.static_mode {
+            return Err(Error::MutableCallInStaticContext);
+        }
+
         // FIXME: implement into_iter on Bytes32
         let topics: Vec<evmc_vm::Bytes32> = topics
             .into_iter()
@@ -227,6 +234,10 @@ impl<'a> Ext for VMExt<'a> {
     /// Should be called when contract commits suicide.
     /// Address to which funds should be refunded.
     fn suicide(&mut self, refund_address: &Address) -> Result<()> {
+        if self.static_mode {
+            return Err(Error::MutableCallInStaticContext);
+        }
+
         self.host.selfdestruct(
             &self.address,
             &evmc_vm::Address {
