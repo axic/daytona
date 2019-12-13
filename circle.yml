@@ -13,7 +13,6 @@ jobs:
             apt update
             apt -y install libclang-dev clang
             rustup component add rustfmt
-            rustup toolchain install nightly
             rustup update
       - run:
           name: Check formatting
@@ -23,11 +22,11 @@ jobs:
       - run:
           name: Build
           command: |
-            cargo +nightly build --release
+            cargo build --release
       - persist_to_workspace:
           root: ~/build
           paths:
-            - target/release/libeip1962.so
+            - target/release/libdaytona.so
 
 workflows:
   version: 2
