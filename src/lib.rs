@@ -125,7 +125,7 @@ impl<'a> Ext for VMExt<'a> {
             CallType::StaticCall => evmc_sys::evmc_call_kind::EVMC_CALL,
             CallType::None => panic!(),
         };
-        let flags = if call_type == CallType::StaticCall {
+        let flags = if (call_type == CallType::StaticCall) || self.is_static() {
             // TODO: make this nicer
             evmc_sys::evmc_flags::EVMC_STATIC as u32
         } else {
